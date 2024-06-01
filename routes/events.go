@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"naaga.me/booking-rest-api/models"
+	"naaga.me/booking-rest-api/utils"
 )
 
 func getEvent(context *gin.Context) {
@@ -34,23 +35,35 @@ func getEvents(context *gin.Context) {
 }
 
 func createEvent(context *gin.Context) {
+
+	token := context.Request.Header.Get("Authorization")
+	if token == "" {
+		context.JSON(http.StatusUnauthorized, gin.H{"message": "Not authorized"})
+		return
+	}
+	userId, err := utils.VerifyToken(token)
+	if err != nil {
+		context.JSON(http.StatusUnauthorized, gin.H{"message": "Not authorized"})
+		return
+	}
+
 	// Creating an empty event variable of type Event struct and binding the POST body JSON to it. The function will return an error
 	// if Struct binding constraints are not met
 	var event models.Event
-	err := context.ShouldBindJSON(&event)
+	err = context.ShouldBindJSON(&event)
 
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"message": "Malformed body request"})
 		return
 	}
 
-	event.ID = 1
-	event.UserId = 1
+	event.UserId = userId
 
 	// Saving the event and responding back the status to the user
 	err = event.Save()
 	if err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to create the event", "event": event})
+		return
 	}
 	context.JSON(http.StatusCreated, gin.H{"message": "Event created successfully!", "event": event})
 }
